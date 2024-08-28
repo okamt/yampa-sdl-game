@@ -62,7 +62,7 @@ library
     exposed-modules:
         Lib,
         Util,
-        SDLUtil
+        RaylibUtil
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -79,7 +79,7 @@ library
         adjunctions,
         Yampa,
         apecs,
-        sdl2
+        h-raylib
 
     -- Directories containing source files.
     hs-source-dirs:   lib

@@ -1,18 +1,23 @@
 module Lib (main) where
 
-import Control.Monad.Representable.Reader (Representable, liftR2)
+import Control.Monad.Representable.Reader (Representable)
 import Data.Distributive
 import Data.Distributive.Generic (genericCollect)
 import Data.IORef
-import Data.List (mapAccumL)
 import Effectful
 import Effectful.Reader.Static
 import Effectful.State.Static.Local
 import FRP.Yampa
+import GHC.Float (float2Double)
 import GHC.Generics
 import Optics
-import qualified SDL
-import SDLUtil
+import qualified Raylib.Core as RL
+import qualified Raylib.Core.Shapes as RL
+import qualified Raylib.Types as RL
+import qualified Raylib.Util as RL
+import qualified Raylib.Util.Colors as RL
+import qualified Raylib.Util.Math as RL
+import RaylibUtil ()
 
 screenWidth :: (Num a) => a
 screenWidth = 1280
@@ -28,7 +33,7 @@ data Controls' a = Controls
   }
   deriving (Show, Functor, Foldable, Traversable, Generic1)
 
-type Controls = Controls' SDL.Scancode
+type Controls = Controls' RL.KeyboardKey
 
 instance Distributive Controls' where collect = genericCollect
 
@@ -44,8 +49,7 @@ data Settings = Settings
 makeFieldLabelsNoPrefix ''Settings
 
 data SystemState = SystemState
-  { window :: SDL.Window,
-    renderer :: SDL.Renderer,
+  { window :: RL.WindowResources,
     settings :: Settings
   }
   deriving (Show)
@@ -62,19 +66,19 @@ makeFieldLabelsNoPrefix ''GameState
 defaultControls :: Controls
 defaultControls =
   Controls
-    { upKey = SDL.ScancodeW,
-      leftKey = SDL.ScancodeA,
-      downKey = SDL.ScancodeS,
-      rightKey = SDL.ScancodeD
+    { upKey = RL.KeyW,
+      leftKey = RL.KeyA,
+      downKey = RL.KeyS,
+      rightKey = RL.KeyD
     }
 
 defaultControlsDev :: Controls
 defaultControlsDev =
   Controls
-    { upKey = SDL.ScancodeL,
-      leftKey = SDL.ScancodeN,
-      downKey = SDL.ScancodeR,
-      rightKey = SDL.ScancodeT
+    { upKey = RL.KeyL,
+      leftKey = RL.KeyN,
+      downKey = RL.KeyR,
+      rightKey = RL.KeyT
     }
 
 getDefaultControls :: Controls
@@ -88,7 +92,7 @@ data Sensed = Sensed
 makeFieldLabelsNoPrefix ''Sensed
 
 data External = External
-  { keyBuffer :: Controls' Bool
+  {
   }
 
 makeFieldLabelsNoPrefix ''External
@@ -96,90 +100,64 @@ makeFieldLabelsNoPrefix ''External
 sense :: (State External :> es, Reader SystemState :> es, IOE :> es) => Eff es Sensed
 sense = do
   SystemState {settings = Settings {controls}} <- ask
-  let handle :: Controls' Bool -> SDL.Event -> (Controls' Bool, ())
-      handle keyBuffer ev = (,()) $
-        case SDL.eventPayload ev of
-          SDL.KeyboardEvent keyboardEvent ->
-            let motion = SDL.keyboardEventKeyMotion keyboardEvent
-                scancode = SDL.keysymScancode $ SDL.keyboardEventKeysym keyboardEvent
-             in liftR2
-                  ( \scancode' current ->
-                      if scancode' == scancode then motion == SDL.Pressed else current
-                  )
-                  controls
-                  keyBuffer
-          _ -> keyBuffer
+  down <- liftIO $ traverse RL.isKeyDown controls
+  return
+    Sensed
+      { down = down
+      }
 
-  events <- SDL.pollEvents
-  External {keyBuffer} <- get
-  let (down, _) = mapAccumL handle keyBuffer events
-  put External {keyBuffer = down}
-    >> return
-      Sensed
-        { down = down
-        }
-
-velVec :: (RealFloat a) => a -> SF Sensed (SDL.V2 a)
+velVec :: Float -> SF Sensed RL.Vector2
 velVec velocity = proc sensed -> do
   let down = sensed ^. #down
 
   let vec =
         sum $
           map
-            (\(b, v) -> (if b then v else SDL.V2 0 0))
-            [ (down ^. #upKey, SDL.V2 0 (-1)),
-              (down ^. #leftKey, SDL.V2 (-1) 0),
-              (down ^. #downKey, SDL.V2 0 1),
-              (down ^. #rightKey, SDL.V2 1 0)
+            (\(b, v) -> (if b then v else RL.Vector2 0 0))
+            [ (down ^. #upKey, RL.Vector2 0 (-1)),
+              (down ^. #leftKey, RL.Vector2 (-1) 0),
+              (down ^. #downKey, RL.Vector2 0 1),
+              (down ^. #rightKey, RL.Vector2 1 0)
             ]
 
   ivec <- integral -< vec
 
-  returnA -< ivec SDL.^* velocity
+  returnA -< ivec RL.|* velocity
 
 initialize :: IO SystemState
 initialize = do
-  window <-
-    SDL.createWindow
-      "App"
-      SDL.defaultWindow
-        { SDL.windowInitialSize = SDL.V2 screenWidth screenHeight
-        }
-  renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
+  window <- RL.initWindow screenWidth screenHeight "Game"
 
   return
     SystemState
       { window = window,
-        renderer = renderer,
         settings =
           Settings
             { controls = getDefaultControls
             }
       }
 
-render :: (Reader SystemState :> es, IOE :> es) => SDL.V2 Double -> Eff es Bool
+render :: (Reader SystemState :> es, IOE :> es) => RL.Vector2 -> Eff es Bool
 render vec = do
-  SystemState {window, renderer} <- ask
+  SystemState {window} <- ask
 
   liftIO $ do
-    SDL.rendererDrawColor renderer SDL.$= SDL.V4 0 0 255 255
-    SDL.clear renderer
+    RL.beginDrawing
 
-    _ <- SDL.rendererDrawColor renderer SDL.$= SDL.V4 255 255 255 255
-    _ <- SDL.fillRect renderer (Just (mkRect (round $ vec ^. _1) (round $ vec ^. _2) 16 16))
+    RL.clearBackground RL.white
+    RL.drawRectangle (round $ vec ^. _1) (round $ vec ^. _2) 64 64 RL.red
 
-    SDL.present renderer
+    RL.endDrawing
 
-    return False
+  return False
 
 game :: IO ()
 game = do
-  lastTicksRef <- liftIO $ newIORef 0
   externalRef <-
     liftIO $
       newIORef
         External
-          { keyBuffer = fmap (const False) defaultControls
+          {
           }
 
   systemState <- initialize
@@ -193,11 +171,9 @@ game = do
   reactimate
     doSense
     ( \_ -> do
-        currentTicks <- liftIO SDL.ticks
-        lastTicks' <- liftIO $ atomicModifyIORef lastTicksRef (currentTicks,)
-        let dt = fromIntegral (currentTicks - lastTicks') / 1000
+        frameTime <- RL.getFrameTime
         sensed <- doSense
-        return (dt, Just sensed)
+        return (float2Double frameTime, Just sensed)
     )
     (\_ val -> runEff $ runReader systemState $ render val)
     (velVec 200)
