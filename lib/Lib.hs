@@ -1,55 +1,23 @@
-module Lib (main) where
+module Lib (game) where
 
-import Control.Monad.Representable.Reader (Representable)
-import Data.Distributive
-import Data.Distributive.Generic (genericCollect)
+import Controls
 import Data.IORef
-import Effectful
+import Effectful.Environment
 import Effectful.Reader.Static
 import Effectful.State.Static.Local
 import FRP.Yampa
 import GHC.Float (float2Double)
-import GHC.Generics
-import Optics
-import qualified Raylib.Core as RL
-import qualified Raylib.Core.Shapes as RL
-import qualified Raylib.Types as RL
-import qualified Raylib.Util as RL
-import qualified Raylib.Util.Colors as RL
-import qualified Raylib.Util.Math as RL
-import RaylibUtil ()
+import RL
 
-targetFPS :: (Num a) => a
+targetFPS, screenWidth, screenHeight :: (Num a) => a
 targetFPS = 60
-
-screenWidth :: (Num a) => a
 screenWidth = 1280
-
-screenHeight :: (Num a) => a
 screenHeight = 720
-
-data Controls' a = Controls
-  { upKey :: a,
-    leftKey :: a,
-    downKey :: a,
-    rightKey :: a
-  }
-  deriving (Show, Functor, Foldable, Traversable, Generic1)
-
-type Controls = Controls' RL.KeyboardKey
-
-instance Distributive Controls' where collect = genericCollect
-
-instance Representable Controls'
-
-makeFieldLabelsNoPrefix ''Controls'
 
 data Settings = Settings
   { controls :: Controls
   }
   deriving (Show)
-
-makeFieldLabelsNoPrefix ''Settings
 
 data SystemState = SystemState
   { window :: RL.WindowResources,
@@ -57,47 +25,18 @@ data SystemState = SystemState
   }
   deriving (Show)
 
-makeFieldLabelsNoPrefix ''SystemState
-
-data GameState = GameState
-  {
-  }
-  deriving (Show)
-
-makeFieldLabelsNoPrefix ''GameState
-
-defaultControls :: Controls
-defaultControls =
-  Controls
-    { upKey = RL.KeyW,
-      leftKey = RL.KeyA,
-      downKey = RL.KeyS,
-      rightKey = RL.KeyD
-    }
-
-defaultControlsDev :: Controls
-defaultControlsDev =
-  Controls
-    { upKey = RL.KeyL,
-      leftKey = RL.KeyN,
-      downKey = RL.KeyR,
-      rightKey = RL.KeyT
-    }
-
-getDefaultControls :: Controls
-getDefaultControls = defaultControlsDev
-
 data Sensed = Sensed
   { down :: Controls' Bool
   }
   deriving (Show)
 
-makeFieldLabelsNoPrefix ''Sensed
-
 data External = External
   {
   }
 
+makeFieldLabelsNoPrefix ''Settings
+makeFieldLabelsNoPrefix ''SystemState
+makeFieldLabelsNoPrefix ''Sensed
 makeFieldLabelsNoPrefix ''External
 
 sense :: (State External :> es, Reader SystemState :> es, IOE :> es) => Eff es Sensed
@@ -127,17 +66,18 @@ velVec velocity = proc sensed -> do
 
   returnA -< ivec RL.|* velocity
 
-initialize :: IO SystemState
+initialize :: (Environment :> es, IOE :> es) => Eff es SystemState
 initialize = do
-  window <- RL.initWindow screenWidth screenHeight "Game"
-  RL.setTargetFPS targetFPS
+  window <- liftIO $ RL.initWindow screenWidth screenHeight "Game"
+  liftIO $ RL.setTargetFPS targetFPS
+  controls <- getDefaultControls
 
   return
     SystemState
       { window = window,
         settings =
           Settings
-            { controls = getDefaultControls
+            { controls = controls
             }
       }
 
@@ -164,7 +104,7 @@ game = do
           {
           }
 
-  systemState <- initialize
+  systemState <- runEff $ runEnvironment initialize
 
   let doSense :: IO Sensed
       doSense = do
@@ -181,6 +121,3 @@ game = do
     )
     (\_ val -> runEff $ runReader systemState $ render val)
     (velVec 200)
-
-main :: IO ()
-main = game

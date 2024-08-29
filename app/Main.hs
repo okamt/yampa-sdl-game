@@ -1,6 +1,6 @@
 module Main where
 
-import qualified Lib (main)
+import qualified Lib (game)
 
 main :: IO ()
-main = Lib.main
+main = Lib.game
