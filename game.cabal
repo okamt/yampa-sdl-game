@@ -61,11 +61,13 @@ library
     -- Modules exported by the library.
     exposed-modules:
         Lib,
-        Util,
-        RaylibUtil
+        GameState,
+        Controls
 
     -- Modules included in this library but not exported.
-    -- other-modules:
+    other-modules:
+        Prelude,
+        RL
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -102,6 +104,7 @@ library
         NoFieldSelectors,
         TypeOperators,
         -- Other useful extensions
+        LambdaCase,
         TupleSections,
         ViewPatterns,
         TemplateHaskell,
