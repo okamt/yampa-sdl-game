@@ -19,6 +19,9 @@ import qualified Raylib.Util.Colors as RL
 import qualified Raylib.Util.Math as RL
 import RaylibUtil ()
 
+targetFPS :: (Num a) => a
+targetFPS = 60
+
 screenWidth :: (Num a) => a
 screenWidth = 1280
 
@@ -127,6 +130,7 @@ velVec velocity = proc sensed -> do
 initialize :: IO SystemState
 initialize = do
   window <- RL.initWindow screenWidth screenHeight "Game"
+  RL.setTargetFPS targetFPS
 
   return
     SystemState
