@@ -52,7 +52,8 @@ extra-doc-files:    CHANGELOG.md
 -- extra-source-files:
 
 common warnings
-    ghc-options: -Wall
+    ghc-options:
+        -Wall -Werror=missing-fields
 
 library
     -- Import common warning flags.
@@ -61,7 +62,7 @@ library
     -- Modules exported by the library.
     exposed-modules:
         Lib,
-        GameState,
+        Game,
         Controls
 
     -- Modules included in this library but not exported.
