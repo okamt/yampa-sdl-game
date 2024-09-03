@@ -9,6 +9,7 @@ import Raylib.Types as RL
 import Raylib.Util as RL
 import Raylib.Util.Colors as RL
 import Raylib.Util.Math as RL
+import qualified Text.Show
 
 instance VectorSpace RL.Vector2 Float where
   zeroVector = RL.zero

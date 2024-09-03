@@ -1,10 +1,7 @@
 module Lib where
 
 import Controls
-import Data.IORef
-import Effectful.Environment
-import Effectful.Reader.Static
-import Effectful.State.Static.Local
+import Eff
 import FRP.Yampa
 import GHC.Float (float2Double)
 import Game
@@ -15,9 +12,9 @@ targetFPS = 60
 screenWidth = 1280
 screenHeight = 720
 
-sense :: (State External :> es, Reader SystemState :> es, IOE :> es) => Eff es Sensed
+sense :: (Eff.State External :> es, Eff.Reader SystemState :> es, IOE :> es) => Eff es Sensed
 sense = do
-  SystemState {settings = Settings {controls}} <- ask
+  SystemState {settings = Settings {controls}} <- Eff.ask
   down <- liftIO $ traverse RL.isKeyDown controls
   return
     Sensed
@@ -39,7 +36,7 @@ initialize = do
             }
       }
 
-render :: (Reader SystemState :> es, IOE :> es) => GameState -> Eff es Bool
+render :: (Eff.Reader SystemState :> es, IOE :> es) => GameState -> Eff es Bool
 render gameState = do
   liftIO $ do
     RL.beginDrawing
@@ -65,13 +62,13 @@ runGame = do
 
   let senseWithExternal = do
         external <- readIORef externalRef
-        (sensed, external') <- runEff $ runReader systemState $ runState external sense
+        (sensed, external') <- runEff $ Eff.runReader systemState $ Eff.runState external sense
         writeIORef externalRef external' >> return sensed
       frameSense _ = do
         frameTime <- RL.getFrameTime
         sensed <- senseWithExternal
         return (float2Double frameTime, Just sensed)
-      actuate _ = runEff . runReader systemState . render
+      actuate _ = runEff . Eff.runReader systemState . render
    in reactimate
         senseWithExternal
         frameSense

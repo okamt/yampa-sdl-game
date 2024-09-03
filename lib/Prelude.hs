@@ -4,4 +4,5 @@ module Prelude (module P, module Optics, module Effectful) where
 
 import Effectful
 import Optics
-import "base" Prelude as P
+-- optics has a more generic uncons
+import "relude" Relude as P hiding (uncons)

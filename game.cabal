@@ -68,6 +68,7 @@ library
     -- Modules included in this library but not exported.
     other-modules:
         Prelude,
+        Eff,
         RL
 
     -- LANGUAGE extensions used by modules in this package.
@@ -75,14 +76,15 @@ library
 
     -- Other library packages from which modules are imported.
     build-depends:
-        base ^>=4.17.2.1,
-        effectful,
-        optics,
-        distributive,
-        adjunctions,
-        Yampa,
-        apecs,
-        h-raylib
+        base ^>= 4.17.2.1,
+        relude ^>= 1.2.1.0,
+        effectful ^>= 2.3.1.0,
+        optics ^>= 0.4.2.1,
+        distributive ^>= 0.6.2.1,
+        adjunctions ^>= 4.4.2,
+        Yampa ^>= 0.14.10,
+        apecs ^>= 0.9.6,
+        h-raylib ^>= 5.5.0.0
 
     -- Directories containing source files.
     hs-source-dirs:   lib
@@ -115,6 +117,10 @@ library
         GeneralizedNewtypeDeriving,
         NamedFieldPuns,
         ScopedTypeVariables
+
+    mixins:
+        base hiding (Prelude),
+        relude
 
 executable game
     -- Import common warning flags.
