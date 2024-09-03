@@ -3,7 +3,7 @@ module Controls where
 import Control.Monad.Representable.Reader (Representable)
 import Data.Distributive
 import Data.Distributive.Generic (genericCollect)
-import Effectful.Environment
+import Eff
 import GHC.Generics
 import RL
 
@@ -41,9 +41,9 @@ defaultControlsDev =
       rightKey = RL.KeyT
     }
 
-getDefaultControls :: (Environment :> es) => Eff es Controls
+getDefaultControls :: (Eff.Environment :> es) => Eff es Controls
 getDefaultControls =
-  lookupEnv "DEV"
+  Eff.lookupEnv "DEV"
     <&> \case
       Nothing -> defaultControls
       Just _ -> defaultControlsDev
